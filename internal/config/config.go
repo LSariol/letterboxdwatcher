@@ -6,9 +6,10 @@ import (
 )
 
 type Config struct {
-	DatabaseURL          string
-	NotificationEndpoint string
-	PollIntervalMinutes  int
+	DatabaseURL                string
+	NotificationEndpoint       string
+	PollIntervalMinutes        int
+	NotificationDelaySeconds   int
 }
 
 func Load() Config {
@@ -16,9 +17,14 @@ func Load() Config {
 	if interval == 0 {
 		interval = 20
 	}
+	delay, _ := strconv.Atoi(os.Getenv("NOTIFICATION_DELAY_SECONDS"))
+	if delay == 0 {
+		delay = 3
+	}
 	return Config{
-		DatabaseURL:          os.Getenv("DATABASE_URL"),
-		NotificationEndpoint: os.Getenv("NOTIFICATION_ENDPOINT"),
-		PollIntervalMinutes:  interval,
+		DatabaseURL:              os.Getenv("DATABASE_URL"),
+		NotificationEndpoint:     os.Getenv("NOTIFICATION_ENDPOINT"),
+		PollIntervalMinutes:      interval,
+		NotificationDelaySeconds: delay,
 	}
 }

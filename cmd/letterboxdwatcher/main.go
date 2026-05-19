@@ -22,11 +22,12 @@ func main() {
 
 	ctx := context.Background()
 
-	runOnce(ctx, client, cfg.NotificationEndpoint)
+	notificationDelay := time.Duration(cfg.NotificationDelaySeconds) * time.Second
+	runOnce(ctx, client, cfg.NotificationEndpoint, notificationDelay)
 	ticker := time.NewTicker(time.Duration(cfg.PollIntervalMinutes) * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		runOnce(ctx, client, cfg.NotificationEndpoint)
+		runOnce(ctx, client, cfg.NotificationEndpoint, notificationDelay)
 	}
 }
 
@@ -52,7 +53,7 @@ func initialize(cfg config.Config) (*app.Client, error) {
 	return app.NewClient(s, httpClient), nil
 }
 
-func runOnce(ctx context.Context, client *app.Client, notificationEndpoint string) {
+func runOnce(ctx context.Context, client *app.Client, notificationEndpoint string, notificationDelay time.Duration) {
 	log.Println("INFO: Starting feed poll...")
 
 	accounts := client.GetAccounts(ctx)
@@ -77,6 +78,7 @@ func runOnce(ctx context.Context, client *app.Client, notificationEndpoint strin
 		}
 
 		log.Printf("INFO: Notification sent for user %s: %s", notification.UserId, res)
+		time.Sleep(notificationDelay)
 
 		if err := client.Store.UpdateLastSeenGUID(ctx, notification.UserId, notification.GUID); err != nil {
 			log.Printf("ERROR: Failed to update last seen GUID for user %s: %v", notification.UserId, err)
