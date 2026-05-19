@@ -1,0 +1,15 @@
+services:
+  boxdwatcher:
+    build: .
+    container_name: boxdwatcher
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${BOTSUITE_DB_CONNECTION_STRING}
+      - NOTIFICATION_ENDPOINT=${BOTSUITE_NOTIFICATION_ENDPOINT}
+      - POLL_INTERVAL_MINUTES=20
+    networks:
+      - spark
+
+networks:
+  spark:
+    external: true
