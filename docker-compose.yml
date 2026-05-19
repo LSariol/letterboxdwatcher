@@ -1,7 +1,7 @@
 services:
-  boxdwatcher:
+  letterboxdwatcher:
     build: .
-    container_name: boxdwatcher
+    container_name: letterboxdwatcher
     restart: unless-stopped
     environment:
       - DATABASE_URL=${BOTSUITE_DB_CONNECTION_STRING}

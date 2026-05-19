@@ -3,9 +3,9 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o boxdwatcher ./cmd/rsswatcher
+RUN go build -o letterboxdwatcher ./cmd/letterboxdwatcher
 
 FROM alpine:latest
 WORKDIR /app
-COPY --from=builder /app/boxdwatcher .
-CMD ["./boxdwatcher"]
+COPY --from=builder /app/letterboxdwatcher .
+CMD ["./letterboxdwatcher"]
