@@ -13,6 +13,12 @@ import (
 )
 
 func main() {
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatalf("FATAL: Failed to load EST timezone: %v", err)
+	}
+	time.Local = est
+
 	cfg := config.Load()
 
 	client, err := initialize(cfg)

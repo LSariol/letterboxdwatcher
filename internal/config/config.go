@@ -15,7 +15,7 @@ type Config struct {
 func Load() Config {
 	interval, _ := strconv.Atoi(os.Getenv("POLL_INTERVAL_MINUTES"))
 	if interval == 0 {
-		interval = 20
+		interval = 25
 	}
 	delay, _ := strconv.Atoi(os.Getenv("NOTIFICATION_DELAY_SECONDS"))
 	if delay == 0 {
