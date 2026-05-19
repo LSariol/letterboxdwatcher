@@ -26,9 +26,9 @@ func (c *Client) BuildNotifications(accountActivity []common.FeedUpdate) []Notif
 		if len(account.NewMovies) == 1 {
 			movie := account.NewMovies[0]
 			if movie.Rewatch {
-				header = fmt.Sprintf("🎬 @%s rewatched ", account.Subscription.Username)
+				header = fmt.Sprintf("🎬 %s rewatched ", account.Subscription.Username)
 			} else {
-				header = fmt.Sprintf("🎬 @%s watched ", account.Subscription.Username)
+				header = fmt.Sprintf("🎬 %s watched ", account.Subscription.Username)
 			}
 
 			if movie.Liked {
@@ -40,7 +40,7 @@ func (c *Client) BuildNotifications(accountActivity []common.FeedUpdate) []Notif
 			footer = fmt.Sprintf("Read their review here: %s", movie.Link)
 
 		} else {
-			header = fmt.Sprintf("🎬 @%s logged %d new movies. ", account.Subscription.Username, len(account.NewMovies))
+			header = fmt.Sprintf("🎬 %s logged %d new movies. ", account.Subscription.Username, len(account.NewMovies))
 			footer = fmt.Sprintf("See other entries and reviews here: %sactivity", account.Subscription.FeedURL)
 
 			reviewsLength := 480 - (len(header) + len(footer))
