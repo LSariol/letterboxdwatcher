@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/lsariol/letterboxdwatcher/internal/common"
 	"github.com/lsariol/letterboxdwatcher/internal/parser"
@@ -121,13 +122,31 @@ func (c *Client) GetNewFeedActivity(accounts []common.FeedData) []common.FeedUpd
 
 			feedUpdate.Subscription.LastSeenGUID = &account.Movies[0].Guid
 
+			guidFound := false
 			for _, movie := range account.Movies {
 				if *lastSeenGUID == movie.Guid {
+					guidFound = true
 					break
-				} else {
+				}
+				feedUpdate.NewMovies = append(feedUpdate.NewMovies, movie)
+			}
 
-					feedUpdate.NewMovies = append(feedUpdate.NewMovies, movie)
-
+			if !guidFound {
+				// Stored GUID no longer in feed (e.g. movie deleted from list).
+				// Discard the full-feed accumulation and fall back to date filtering.
+				feedUpdate.NewMovies = nil
+				if account.Subscription.LastFetchedAt != nil {
+					for _, movie := range account.Movies {
+						pubDate, err := time.Parse(time.RFC1123Z, movie.PubDate)
+						if err != nil {
+							continue
+						}
+						if pubDate.After(*account.Subscription.LastFetchedAt) {
+							feedUpdate.NewMovies = append(feedUpdate.NewMovies, movie)
+						}
+					}
+				} else if len(account.Movies) > 0 {
+					feedUpdate.NewMovies = []common.ParsedMovie{account.Movies[0]}
 				}
 			}
 
