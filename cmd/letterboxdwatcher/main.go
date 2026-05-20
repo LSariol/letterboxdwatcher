@@ -8,7 +8,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lsariol/letterboxdwatcher/internal/app"
+	"github.com/lsariol/letterboxdwatcher/internal/common"
 	"github.com/lsariol/letterboxdwatcher/internal/config"
+	"github.com/lsariol/letterboxdwatcher/internal/parser"
 	"github.com/lsariol/letterboxdwatcher/internal/store"
 )
 
@@ -27,14 +29,11 @@ func main() {
 	}
 
 	ctx := context.Background()
-
 	notificationDelay := time.Duration(cfg.NotificationDelaySeconds) * time.Second
-	runOnce(ctx, client, cfg.NotificationEndpoint, notificationDelay)
-	ticker := time.NewTicker(time.Duration(cfg.PollIntervalMinutes) * time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
-		runOnce(ctx, client, cfg.NotificationEndpoint, notificationDelay)
-	}
+	pollWindow := time.Duration(cfg.PollIntervalMinutes) * time.Minute
+	minFeedDelay := time.Duration(cfg.MinFeedDelaySeconds) * time.Second
+
+	runLoop(ctx, client, cfg.NotificationEndpoint, notificationDelay, pollWindow, minFeedDelay)
 }
 
 func initialize(cfg config.Config) (*app.Client, error) {
@@ -59,20 +58,55 @@ func initialize(cfg config.Config) (*app.Client, error) {
 	return app.NewClient(s, httpClient), nil
 }
 
-func runOnce(ctx context.Context, client *app.Client, notificationEndpoint string, notificationDelay time.Duration) {
-	log.Println("INFO: Starting feed poll...")
+func runLoop(ctx context.Context, client *app.Client, notificationEndpoint string, notificationDelay time.Duration, pollWindow time.Duration, minFeedDelay time.Duration) {
+	for {
+		subscriptions, err := client.Store.GetSubscriptions(ctx)
+		if err != nil {
+			log.Printf("ERROR: Failed to load subscriptions: %v. Retrying after poll window.", err)
+			time.Sleep(pollWindow)
+			continue
+		}
 
-	accounts := client.GetAccounts(ctx)
-	if accounts == nil {
-		log.Println("WARN: Skipping poll cycle, failed to load accounts.")
+		n := len(subscriptions)
+		if n == 0 {
+			log.Println("INFO: No subscriptions found. Sleeping for poll window.")
+			time.Sleep(pollWindow)
+			continue
+		}
+
+		feedDelay := pollWindow / time.Duration(n)
+		if feedDelay < minFeedDelay {
+			feedDelay = minFeedDelay
+		}
+
+		log.Printf("INFO: Starting staggered poll cycle: %d subscriptions, %s between feeds.", n, feedDelay)
+
+		for _, subscription := range subscriptions {
+			processSubscription(ctx, client, subscription, notificationEndpoint, notificationDelay)
+			time.Sleep(feedDelay)
+		}
+
+		log.Println("INFO: Staggered poll cycle complete.")
+	}
+}
+
+func processSubscription(ctx context.Context, client *app.Client, subscription store.Subscription, notificationEndpoint string, notificationDelay time.Duration) {
+	rawFeed, err := client.GetRawRSSFeed(ctx, subscription)
+	if err != nil {
+		log.Printf("WARN: Skipping subscription for %s: %v", subscription.Username, err)
 		return
 	}
 
-	newAccountActivity := client.GetNewFeedActivity(accounts)
-	notifications := client.BuildNotifications(newAccountActivity)
+	account := common.FeedData{
+		Subscription: subscription,
+		Movies:       parser.ParseFeed(rawFeed),
+	}
+
+	feedUpdates := client.GetNewFeedActivity([]common.FeedData{account})
+	notifications := client.BuildNotifications(feedUpdates)
 
 	if len(notifications) == 0 {
-		log.Println("INFO: No new activity found.")
+		log.Printf("INFO: No new activity for %s.", subscription.Username)
 		return
 	}
 
@@ -90,6 +124,4 @@ func runOnce(ctx context.Context, client *app.Client, notificationEndpoint strin
 			log.Printf("ERROR: Failed to update last seen GUID for user %s: %v", notification.UserId, err)
 		}
 	}
-
-	log.Println("INFO: Feed poll complete.")
 }
